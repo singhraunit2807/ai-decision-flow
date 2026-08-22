@@ -1,0 +1,3 @@
+"use client";
+import {Handle,Position,type NodeProps} from "@xyflow/react";
+export default function DecisionNode({data,selected}:NodeProps){const d=data as {label:string;prompt:string;active?:boolean};return <div className={`flow-node ${selected||d.active?"active":""}`}><Handle type="target" position={Position.Top}/><div className="flow-head"><span>{d.label}</span><span className="badge">AI</span></div><div className="flow-body"><div className="prompt-label">Decision prompt</div><div className="prompt-text">{d.prompt}</div></div><Handle id="yes" type="source" position={Position.Bottom} style={{left:"30%",background:"#168a65"}}/><Handle id="no" type="source" position={Position.Bottom} style={{left:"70%",background:"#c2410c"}}/></div>}
