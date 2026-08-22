@@ -1,0 +1,2 @@
+import FlowEditor from "@/components/FlowEditor";
+export default function Home(){return <div className="app"><header className="header"><div className="brand"><div className="logo">AI</div><span>AI Decision Flow</span></div><div className="actions"><button className="btn">Export JSON</button><button className="btn primary">React Flow + Inngest</button></div></header><main className="main"><FlowEditor/></main></div>}
