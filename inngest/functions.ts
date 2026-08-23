@@ -3,8 +3,10 @@ import { askDecision } from "@/lib/ai";
 import { appendLog, updateRun } from "@/lib/store";
 import type { WorkflowGraph } from "@/lib/types";
 
+type DecisionAnswer = "YES" | "NO";
+
 export const executeWorkflow = inngest.createFunction(
-  { id: "execute-ai-decision-workflow", retries: 2 },
+  { id: "execute-ai-decision-workflow", retries: 1 },
   { event: "workflow/execute" },
   async ({ event, step }) => {
     const { runId, graph, customerRequest } = event.data as {
@@ -14,12 +16,14 @@ export const executeWorkflow = inngest.createFunction(
     };
 
     updateRun(runId, { status: "running", logs: [] });
+
     let current = graph.nodes[0]?.id;
     const visited = new Set<string>();
 
     while (current && !visited.has(current)) {
       visited.add(current);
       updateRun(runId, { currentNode: current });
+
       const node = graph.nodes.find((n) => n.id === current);
       if (!node) break;
 
@@ -28,21 +32,27 @@ export const executeWorkflow = inngest.createFunction(
         break;
       }
 
-      const answer = await step.run(`decision-${node.id}`, () => askDecision(node.prompt, customerRequest));
+      const answer = (await step.run(`decision-${node.id}`, () =>
+        askDecision(node.prompt, customerRequest),
+      )) as DecisionAnswer;
+
       appendLog(runId, `${node.label}: ${answer}`);
 
-      const normalizedAnswer = answer.trim().toUpperCase() as "YES" | "NO";
+      const normalizedAnswer = answer.trim().toUpperCase() as DecisionAnswer;
       let edge = graph.edges.find(
         (e) =>
           e.source === current &&
           String(e.branch).trim().toUpperCase() === normalizedAnswer,
       );
 
-      // Final Support Ticket is a terminal decision in the workflow.
-      // If the user creates/loads this node without manually wiring its YES
-      // output, complete the workflow by routing YES to the END node.
-      if (!edge && normalizedAnswer === "YES" && node.label.trim().toUpperCase() === "FINAL SUPPORT TICKET") {
-        const endNode = graph.nodes.find((n) => n.label.trim().toUpperCase() === "END");
+      if (
+        !edge &&
+        normalizedAnswer === "YES" &&
+        node.label.trim().toUpperCase() === "FINAL SUPPORT TICKET"
+      ) {
+        const endNode = graph.nodes.find(
+          (n) => n.label.trim().toUpperCase() === "END",
+        );
         if (endNode) {
           appendLog(runId, "Final Support Ticket: YES → END");
           current = endNode.id;
@@ -54,6 +64,7 @@ export const executeWorkflow = inngest.createFunction(
         appendLog(runId, "No matching branch. Workflow completed.");
         break;
       }
+
       current = edge.target;
     }
 
