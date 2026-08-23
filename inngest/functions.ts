@@ -31,7 +31,25 @@ export const executeWorkflow = inngest.createFunction(
       const answer = await step.run(`decision-${node.id}`, () => askDecision(node.prompt, customerRequest));
       appendLog(runId, `${node.label}: ${answer}`);
 
-      const edge = graph.edges.find((e) => e.source === current && e.branch === answer);
+      const normalizedAnswer = answer.trim().toUpperCase() as "YES" | "NO";
+      let edge = graph.edges.find(
+        (e) =>
+          e.source === current &&
+          String(e.branch).trim().toUpperCase() === normalizedAnswer,
+      );
+
+      // Final Support Ticket is a terminal decision in the workflow.
+      // If the user creates/loads this node without manually wiring its YES
+      // output, complete the workflow by routing YES to the END node.
+      if (!edge && normalizedAnswer === "YES" && node.label.trim().toUpperCase() === "FINAL SUPPORT TICKET") {
+        const endNode = graph.nodes.find((n) => n.label.trim().toUpperCase() === "END");
+        if (endNode) {
+          appendLog(runId, "Final Support Ticket: YES → END");
+          current = endNode.id;
+          continue;
+        }
+      }
+
       if (!edge) {
         appendLog(runId, "No matching branch. Workflow completed.");
         break;
