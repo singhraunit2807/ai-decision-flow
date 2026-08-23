@@ -16,17 +16,31 @@ export async function askDecision(decisionPrompt: string, customerRequest: strin
     body: JSON.stringify({
       model,
       temperature: 0,
-      max_tokens: 3,
+      max_tokens: 5,
       messages: [
-        { role: "system", content: "You are a workflow decision classifier. Answer every decision question with exactly YES or NO. Never explain." },
-        { role: "user", content: `Customer request:\n${customerRequest.trim()}\n\nDecision question:\n${decisionPrompt.trim()}\n\nReturn exactly YES or NO.` },
+        {
+          role: "system",
+          content:
+            "You are a workflow decision classifier. Evaluate the customer's request against the current decision question. Return exactly YES or NO. Do not explain. Do not answer from the question alone.",
+        },
+        {
+          role: "user",
+          content: `Customer request:\n${customerRequest.trim()}\n\nCurrent decision question:\n${decisionPrompt.trim()}\n\nReturn exactly YES or NO.`,
+        },
       ],
     }),
   });
+
   const body = await response.text();
   if (!response.ok) throw new Error(`Model request failed: ${response.status}${body ? ` - ${body.slice(0, 300)}` : ""}`);
+
   let data: any;
-  try { data = JSON.parse(body); } catch { throw new Error("Model returned invalid JSON."); }
+  try {
+    data = JSON.parse(body);
+  } catch {
+    throw new Error("Model returned invalid JSON.");
+  }
+
   const text = String(data?.choices?.[0]?.message?.content || "").trim().toUpperCase();
   const match = text.match(/\b(YES|NO)\b/);
   if (!match) throw new Error(`Unexpected model response: ${text}`);
