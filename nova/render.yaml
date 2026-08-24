@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: nova-appointment-assistant
+    runtime: docker
+    dockerfilePath: ./nova/Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: NOVA_DB_PATH
+        value: /tmp/nova.db
