@@ -1,14 +1,15 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from nova.ai.intent import detect_intent
 from nova.database import init_db, list_appointments
 from nova.routes.appointments import book, cancel, reschedule
 from nova.scheduling.engine import find_slots
-from nova.voice.twilio_handler import start_call_response, handle_speech
+from nova.voice.twilio_handler import start_call_response, handle_speech, twilio_greeting, twilio_speech_response
 
 app = FastAPI(title="NOVA - Natural Voice Appointment Assistant", version="2.0.0")
 
@@ -59,10 +60,7 @@ def suggest_slots(request: AppointmentRequest):
 
 @app.post("/appointments")
 def create_appointment(request: BookRequest):
-    result = book(request.name, request.service, request.start, request.duration_minutes)
-    if result.get("status") == "unavailable":
-        return result
-    return result
+    return book(request.name, request.service, request.start, request.duration_minutes)
 
 
 @app.get("/appointments")
@@ -94,3 +92,15 @@ def voice_start():
 @app.post("/voice/speech")
 def voice_speech(text: str):
     return handle_speech(text)
+
+
+@app.post("/voice/twilio")
+def twilio_voice():
+    return Response(content=twilio_greeting(), media_type="application/xml")
+
+
+@app.post("/voice/twilio/speech")
+async def twilio_speech(request: Request):
+    form = await request.form()
+    transcript = str(form.get("SpeechResult") or "")
+    return Response(content=twilio_speech_response(transcript), media_type="application/xml")
