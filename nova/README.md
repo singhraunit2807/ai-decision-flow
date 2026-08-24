@@ -5,24 +5,26 @@ NOVA is a voice-first appointment scheduling assistant designed around a simple 
 ## What is implemented
 
 - Natural-language intent detection for booking, cancellation, rescheduling and availability
+- Optional Llama 4 Scout response adapter through Groq
 - Deterministic scheduling and conflict checking
 - Real SQLite persistence for local development
 - FastAPI REST API for appointment operations
 - Slot suggestion based on working hours and existing appointments
 - Twilio-compatible voice webhook returning TwiML
-- Basic voice conversation adapter that can be connected to an STT provider
-- Automated scheduling tests
+- Optional local Whisper speech-to-text adapter
+- Optional local TTS adapter
+- Automated scheduling and API tests
 
 ## Architecture
 
 ```text
 Caller
   ↓
-Twilio-compatible webhook
+Twilio-compatible webhook / local voice adapter
   ↓
-Speech / transcript
+Speech-to-Text
   ↓
-Intent detection
+Intent / Llama 4 Scout adapter
   ↓
 FastAPI action layer
   ↓
@@ -35,20 +37,33 @@ Response / TwiML
 Caller
 ```
 
-The documented production architecture can replace the local persistence and voice adapters with Supabase/PostgreSQL, Whisper, an LLM such as Llama 4 Scout, and Orpheus TTS without changing the core scheduling rules.
+The production architecture can replace the local persistence and voice adapters with Supabase/PostgreSQL, hosted Whisper, Llama 4 Scout through Groq, and Orpheus TTS without changing the core scheduling rules.
 
 ## Run locally
 
+Run these commands from the **repository root**, not from inside the `nova` directory:
+
 ```bash
-cd nova
 python -m venv .venv
 # Windows: .venv\\Scripts\\activate
 # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app:app --reload
+pip install -r nova/requirements.txt
+uvicorn nova.app:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
+## Optional voice dependencies
+
+```bash
+pip install -r nova/requirements-voice.txt
+```
+
+Local audio transcription uses faster-whisper. For a phone workflow, Twilio can provide the speech transcript through its speech gathering flow.
+
+## Optional Llama 4 Scout integration
+
+Set `GROQ_API_KEY` in the local environment and use the adapter in `nova/ai/llm.py`. The adapter uses Groq's `meta-llama/llama-4-scout-17b-16e-instruct` model.
 
 ## Useful API calls
 
@@ -110,6 +125,14 @@ Configure the Twilio incoming-call webhook to point to:
 `POST /voice/twilio`
 
 The endpoint returns TwiML and uses speech gathering for the first turn. A public HTTPS deployment is required for a real phone call.
+
+## Testing
+
+From the repository root:
+
+```bash
+pytest nova/tests -q
+```
 
 ## Project evaluation
 
